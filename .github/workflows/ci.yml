@@ -29,8 +29,9 @@ jobs:
         
     - name: Run Pytest with Coverage
       env:
-        # Mocking the encryption key for CI tests so it doesn't fail on initialization
+        # Mocking required keys for CI tests to prevent Pydantic validation failures
         FERNET_ENCRYPTION_KEY: "mock_key_for_ci_tests_only_do_not_use_in_prod=" 
+        OPENAI_API_KEY: "sk-mock-key-for-ci-tests-only"
       run: |
         PYTHONPATH=.:$PYTHONPATH pytest tests/ --cov=src --cov-report=xml --cov-fail-under=80
         
@@ -47,11 +48,11 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Run Trivy vulnerability scanner in fs mode
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@v0.18.0
       with:
         scan-type: 'fs'
         ignore-unfixed: true
         format: 'table'
-        target: '.'
+        scan-ref: '.'
         severity: 'CRITICAL,HIGH'
         exit-code: 1 # Fail the build if vulnerabilities are found
