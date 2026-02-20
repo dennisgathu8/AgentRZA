@@ -18,6 +18,8 @@ class PipelineState(TypedDict):
     # Working payloads
     raw_match_metadata: List[Dict[str, Any]] | None
     raw_event_data: Dict[str, Any] | None
+    raw_tracking_home: str | None
+    raw_tracking_away: str | None
     enriched_payload: MatchEnrichedPayload | None
     
     # Status and Audit

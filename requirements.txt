@@ -13,3 +13,6 @@ plotly==5.19.0
 pandas==2.2.1
 pytest==8.0.2
 streamlit==1.31.1
+pytest-cov==4.1.0
+pytest-asyncio==0.23.5
+pytest-cov==4.1.0

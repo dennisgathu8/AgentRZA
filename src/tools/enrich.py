@@ -68,6 +68,35 @@ class XGModel:
         
         # Ensure strict bounds as directed
         return max(0.0, min(1.0, float(prob)))
+        
+    def calculate_pitch_control(self, tracking_frame, home_team_possession: bool) -> dict:
+        """
+        Estimates Pitch Control using simplistic Voronoi distances.
+        Returns percentage metric { 'home': 0.55, 'away': 0.45 }.
+        """
+        # Simplified: Who is closest to the ball?
+        ball_loc = tracking_frame.ball_location
+        if not ball_loc:
+            return {'home': 0.5, 'away': 0.5}
+            
+        min_home_dist = float('inf')
+        for p in tracking_frame.home_players:
+            dist = math.sqrt((p.x - ball_loc.x)**2 + (p.y - ball_loc.y)**2)
+            if dist < min_home_dist:
+                min_home_dist = dist
+                
+        min_away_dist = float('inf')
+        for p in tracking_frame.away_players:
+            dist = math.sqrt((p.x - ball_loc.x)**2 + (p.y - ball_loc.y)**2)
+            if dist < min_away_dist:
+                min_away_dist = dist
+                
+        # Proportional assignment (closer = higher control)
+        total_dist = (min_home_dist + min_away_dist + 0.001)
+        home_ratio = 1.0 - (min_home_dist / total_dist)
+        away_ratio = 1.0 - (min_away_dist / total_dist)
+        
+        return {'home': home_ratio, 'away': away_ratio}
     
 _xg_model_instance = XGModel()
 

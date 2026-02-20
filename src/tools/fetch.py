@@ -59,5 +59,25 @@ class SecureFetcher:
             audit_log("fetch_error", "FetcherAgent", {"source": "StatsBomb", "match_id": match_id, "error": str(e)})
             raise
 
+    @retry(
+        retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)),
+        stop=stop_after_attempt(4),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        reraise=True
+    )
+    async def fetch_metrica_tracking(self, home_or_away: str) -> str:
+        """Fetch raw tracking CSV data from Metrica open GitHub securely."""
+        url = f"https://raw.githubusercontent.com/metrica-sports/sample-data/master/data/Sample_Game_1/Sample_Game_1_RawTrackingData_{home_or_away}_Team.csv"
+        audit_log("fetch_start", "FetcherAgent", {"source": "Metrica", "url": url, "type": f"tracking_{home_or_away}"})
+        
+        try:
+            response = await self.client.get(url)
+            response.raise_for_status()
+            audit_log("fetch_success", "FetcherAgent", {"source": "Metrica", "type": f"tracking_{home_or_away}", "size_bytes": len(response.content)})
+            return response.text
+        except Exception as e:
+            audit_log("fetch_error", "FetcherAgent", {"source": "Metrica", "type": f"tracking_{home_or_away}", "error": str(e)})
+            raise
+
     async def close(self):
         await self.client.aclose()

@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environments
+venv/
+env/
+.env
+
+# Secrets & Local DBs
+*.enc
+*.duckdb
+data/db/*
+logs/*
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Tests
+.pytest_cache/
+htmlcov/
+coverage.xml

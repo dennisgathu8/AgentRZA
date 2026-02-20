@@ -1,4 +1,5 @@
 import duckdb
+import json
 from config.settings import get_settings
 from cryptography.fernet import Fernet
 import os
@@ -27,7 +28,8 @@ class SecureDB:
                 away_team VARCHAR,
                 total_home_xg DOUBLE,
                 total_away_xg DOUBLE,
-                status VARCHAR
+                status VARCHAR,
+                tracking_frames JSON
             );
             
             CREATE TABLE IF NOT EXISTS events (
@@ -55,15 +57,16 @@ class SecureDB:
         # Upsert match (Insert OR Replace semantics)
         self.conn.execute("""
             INSERT OR REPLACE INTO matches 
-            (match_id, home_team, away_team, total_home_xg, total_away_xg, status)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (match_id, home_team, away_team, total_home_xg, total_away_xg, status, tracking_frames)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
             match['match_id'], 
             match['home_team']['team_name'], 
             match['away_team']['team_name'],
             payload['total_home_xg'],
             payload['total_away_xg'],
-            match['status']
+            match['status'],
+            json.dumps(payload.get('tracking_frames', []))
         ))
         
         # Batch insert events

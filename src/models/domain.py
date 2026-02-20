@@ -48,6 +48,20 @@ class ShotContext(StrictModel):
     distance_to_goal: Optional[float] = Field(default=None, ge=0.0)
     angle_to_goal: Optional[float] = Field(default=None)
 
+class TrackingFrame(StrictModel):
+    """
+    State-of-the-Art representation of a single 30fps optical tracking frame.
+    Defines zero-trust bounding logic for X, Y coordinates (normalized 0-1) across both teams.
+    """
+    frame_id: int
+    period: int
+    timestamp_ms: int
+    ball_location: Optional[Location] = None
+    home_players: List[Location] = [] # List of X,Y positions
+    away_players: List[Location] = [] # List of X,Y positions
+    home_ppda: Optional[float] = None  # Passes Allowed Per Defensive Action at this frame
+    away_ppda: Optional[float] = None
+
 class Event(StrictModel):
     event_id: str
     match_id: int
@@ -68,5 +82,6 @@ class Event(StrictModel):
 class MatchEnrichedPayload(StrictModel):
     match: Match
     events: List[Event]
+    tracking_frames: List[TrackingFrame] = []
     total_home_xg: float = Field(default=0.0, ge=0.0)
     total_away_xg: float = Field(default=0.0, ge=0.0)

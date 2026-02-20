@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  pipeline:
+    build: .
+    container_name: football-gravity-pipeline
+    command: python main.py --date today
+    env_file: .env # Must contain FERNET_ENCRYPTION_KEY
+    volumes:
+      - ./data/db:/app/data/db
+      - ./logs:/app/logs
+    restart: "no"
+
+  dashboard:
+    build: .
+    container_name: football-gravity-dashboard
+    command: streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+    env_file: .env # Requires FERNET_ENCRYPTION_KEY to decrypt in-memory
+    volumes:
+      - ./data/db:/app/data/db:ro # Read-only access to prevent analytical modifications
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    depends_on:
+      - pipeline

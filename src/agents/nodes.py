@@ -58,6 +58,23 @@ async def fetcher_node(state: PipelineState) -> PipelineState:
     try:
         raw_events = await fetcher.fetch_statsbomb_events(match_id)
         state["raw_event_data"] = {"match_id": match_id, "events": raw_events}
+        
+        # Parallel fetch Metrica open tracking data (Sample Game 1) for the first match for demo enrichment
+        if state.get("raw_tracking_home") is None: 
+            try:
+                home_tracking = await fetcher.fetch_metrica_tracking("Home")
+                away_tracking = await fetcher.fetch_metrica_tracking("Away")
+                state["raw_tracking_home"] = home_tracking
+                state["raw_tracking_away"] = away_tracking
+                audit_log("fetch_tracking_success", "FetcherAgent", {"match_id": match_id})
+            except Exception as e:
+                audit_log("fetch_tracking_warning", "FetcherAgent", {"match_id": match_id, "warning": "Tracking absent", "error": str(e)})
+                state["raw_tracking_home"] = None
+                state["raw_tracking_away"] = None
+        else:
+            # We already have tracking for the demo run
+            pass
+            
         state["pipeline_status"] = "enriching"
     except Exception as e:
         state["errors"].append(f"Fetch failed for {match_id}: {str(e)}")

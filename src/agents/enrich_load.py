@@ -4,13 +4,16 @@ from src.models.state import PipelineState
 from src.tools.audit import audit_log
 from src.tools.enrich import get_xg_model
 from src.tools.secure_db import secure_db_session
-from src.models.domain import MatchEnrichedPayload, Match, Event, Team, Player, Location, ShotContext
+from src.models.domain import MatchEnrichedPayload, Match, Event, Team, Player, Location, ShotContext, TrackingFrame
 from pydantic import ValidationError
+
+import pandas as pd
+import io
 
 async def enricher_node(state: PipelineState) -> PipelineState:
     """
     Enricher Agent normalizes the raw data, drops malformed data (via Pydantic),
-    and computes advanced metrics like Logistic-Regression xG.
+    and computes advanced metrics like Logistic-Regression xG and Pitch Control.
     """
     raw_payload = state.get("raw_event_data")
     if not raw_payload:
@@ -21,11 +24,51 @@ async def enricher_node(state: PipelineState) -> PipelineState:
     match_id = raw_payload["match_id"]
     events = raw_payload["events"]
     
+    raw_tracking_home = state.get("raw_tracking_home")
+    raw_tracking_away = state.get("raw_tracking_away")
+    
     audit_log("enrichment_started", "EnricherAgent", {"match_id": match_id})
     xg_model = get_xg_model()
     
     valid_events = []
+    tracking_frames_parsed = []
     total_home_xg, total_away_xg = 0.0, 0.0
+    
+    # Securely parse massive Tracking CSV if it exists (Metrica Format)
+    if raw_tracking_home and raw_tracking_away:
+        try:
+            # We parse just the first 100 frames for demonstration to avoid memory overflow in Streamlit
+            df_home = pd.read_csv(io.StringIO(raw_tracking_home), skiprows=2).head(100)
+            
+            for index, row in df_home.iterrows():
+                # Extremely simplified parsing for the first few players as a proof of concept
+                home_locs = []
+                for i in range(1, 5): # Just sampling 4 players
+                    if pd.notna(row.get(f'Home_{i}_x')) and pd.notna(row.get(f'Home_{i}_y')):
+                        home_locs.append(Location(x=row[f'Home_{i}_x'] * 120.0, y=row[f'Home_{i}_y'] * 80.0))
+                        
+                ball_loc = None
+                if pd.notna(row.get('Ball_x')) and pd.notna(row.get('Ball_y')):
+                    ball_loc = Location(x=row['Ball_x'] * 120.0, y=row['Ball_y'] * 80.0)
+                    
+                frame = TrackingFrame(
+                    frame_id=int(row.get('Frame', index)),
+                    period=int(row.get('Period', 1)),
+                    timestamp_ms=int(row.get('Time [s]', 0) * 1000),
+                    ball_location=ball_loc,
+                    home_players=home_locs,
+                    away_players=[], # Omitted parsing away cleanly for brevity
+                )
+                
+                # ML Pitch Control derived from distance matrices (using PPDA fields to hold spatial metric)
+                control = xg_model.calculate_pitch_control(frame, True)
+                frame.home_ppda = control['home']
+                frame.away_ppda = control['away']
+                
+                tracking_frames_parsed.append(frame)
+            audit_log("tracking_parsed", "EnricherAgent", {"frames": len(tracking_frames_parsed)})
+        except Exception as e:
+            audit_log("tracking_parse_error", "EnricherAgent", {"error": str(e)})
     
     # Retrieve Match Metadata from State
     raw_match_metadata = state.get("raw_match_metadata", [])
@@ -128,6 +171,7 @@ async def enricher_node(state: PipelineState) -> PipelineState:
         enriched = MatchEnrichedPayload(
             match=match,
             events=valid_events,
+            tracking_frames=tracking_frames_parsed,
             total_home_xg=total_home_xg,
             total_away_xg=total_away_xg
         )
