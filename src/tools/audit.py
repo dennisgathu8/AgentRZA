@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 from datetime import datetime
@@ -11,6 +12,11 @@ def get_audit_logger():
     logger.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
     
     if not logger.handlers:
+        # Ensure parent directory exists for zero-trust log persistence
+        log_dir = os.path.dirname(settings.audit_log_path)
+        if log_dir and not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True)
+            
         fh = logging.FileHandler(settings.audit_log_path)
         fh.setFormatter(logging.Formatter('%(message)s'))
         logger.addHandler(fh)
