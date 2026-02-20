@@ -31,8 +31,8 @@ graph TD
         V[Validator Agent]
         
         O -->|Queue World Cup Matches| F
-        F -->|Raw JSON (TLS)| E
-        E -->|scikit-learn xG + Pydantic| L
+        F -->|Raw JSON via TLS| E
+        E -->|scikit-learn xG and Pydantic| L
         L -->|Encrypted DuckDB Upsert| V
         V -->|Anomaly Detection| O
     end
